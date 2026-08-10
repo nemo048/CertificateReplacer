@@ -1,0 +1,73 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag for this manual build (leave empty for an auto-generated dev tag)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Run logic test suite
+        run: dotnet run --project CertReplacer.Tests -c Release
+
+  build-release:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish self-contained win-x64 exe
+        run: >
+          dotnet publish CertReplacer/CertReplacer.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true -o publish
+
+      - name: Zip build output
+        shell: pwsh
+        run: Compress-Archive -Path publish/CertReplacer.exe -DestinationPath CertReplacer-win-x64.zip
+
+      - name: Determine release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+            if [ -z "$TAG" ]; then
+              TAG="dev-$(date -u +%Y%m%d%H%M%S)"
+            fi
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: CertReplacer ${{ steps.tag.outputs.tag }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          files: |
+            publish/CertReplacer.exe
+            CertReplacer-win-x64.zip

@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CertReplacer"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="640"
+        x:Class="CertReplacer.MainWindow"
+        Width="820" Height="680" MinWidth="640" MinHeight="480"
+        Title="Certificate Replacer">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
+
+        <!-- Root directory -->
+        <Grid Grid.Row="0" ColumnDefinitions="120,*,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Root folder" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Name="RootDirectoryBox" PlaceholderText="C:\path\to\folders" Margin="0,0,8,0" />
+            <Button Grid.Column="2" Name="BrowseRootButton" Content="Browse..." />
+        </Grid>
+
+        <!-- Certificate file -->
+        <Grid Grid.Row="1" ColumnDefinitions="120,*,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="New certificate" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Name="CertificatePathBox" PlaceholderText="C:\path\to\new-cert.pfx" Margin="0,0,8,0" />
+            <Button Grid.Column="2" Name="BrowseCertButton" Content="Browse..." />
+        </Grid>
+
+        <!-- Patterns -->
+        <Grid Grid.Row="2" ColumnDefinitions="120,*" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Cert patterns" VerticalAlignment="Center"
+                       ToolTip.Tip="Comma-separated wildcard patterns, e.g. *.pfx, *.p12, *.cer*, *.crt, *.pem" />
+            <TextBox Grid.Column="1" Name="PatternsBox" Text="*.pfx, *.p12, *.cer*, *.crt, *.pem" />
+        </Grid>
+
+        <!-- Exclude folders -->
+        <Grid Grid.Row="3" ColumnDefinitions="120,*" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Exclude folders" VerticalAlignment="Center"
+                       ToolTip.Tip="Comma-separated. Folder name, relative/absolute path, or mask (00, 00\*, C:\...\00, 9*)" />
+            <TextBox Grid.Column="1" Name="ExcludeFoldersBox" PlaceholderText="e.g. 00, archive\*, 9*" />
+        </Grid>
+
+        <!-- Options -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="24" Margin="120,0,0,8">
+            <CheckBox Name="IncludeRootCheckBox" Content="Include root folder itself" />
+            <CheckBox Name="DryRunCheckBox" Content="Dry run (preview only, no changes)" IsChecked="True" />
+        </StackPanel>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Name="RunButton" Content="Run" Classes="accent" />
+            <Button Name="CancelButton" Content="Cancel" IsEnabled="False" />
+            <Button Name="ClearLogButton" Content="Clear log" />
+            <TextBlock Name="StatusText" VerticalAlignment="Center" Margin="16,0,0,0" />
+        </StackPanel>
+
+        <!-- Log -->
+        <Border Grid.Row="6" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
+            <ScrollViewer Name="LogScrollViewer">
+                <ItemsControl Name="LogItems" Margin="6">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="local:LogEntry">
+                            <TextBlock Text="{Binding Text}" Foreground="{Binding Brush}"
+                                       FontFamily="Consolas,Menlo,monospace" FontSize="12"
+                                       TextWrapping="Wrap" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="7" Text="Removes existing certificate files in matching subfolders and replaces them with the selected certificate. Review with Dry run first."
+                    Foreground="Gray" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" />
+    </Grid>
+</Window>
