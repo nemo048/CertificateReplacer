@@ -62,6 +62,8 @@ dotnet run --project CertReplacer.Tests -c Release
 
 ## Releases
 
-Every push of a `v*` tag (e.g. `v1.0.0`) builds a self-contained `win-x64` single-file exe via
-GitHub Actions and publishes it to [Releases](../../releases). You can also trigger a build
-manually from the Actions tab (workflow_dispatch) to get an ad-hoc build without tagging.
+Every push to `main` automatically builds a self-contained `win-x64` single-file exe and
+publishes it to the rolling **[latest](../../releases/tag/latest)** pre-release, so
+`CertReplacer.exe` there always matches the newest code. Pushing a `v*.*.*` tag (e.g. `v1.0.0`)
+instead publishes a proper versioned release. You can also trigger a build manually from the
+Actions tab (workflow_dispatch).

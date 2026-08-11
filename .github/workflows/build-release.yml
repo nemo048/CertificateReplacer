@@ -30,7 +30,10 @@ jobs:
 
   build-release:
     needs: test
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,17 +60,29 @@ jobs:
             if [ -z "$TAG" ]; then
               TAG="dev-$(date -u +%Y%m%d%H%M%S)"
             fi
-          else
+            NAME="CertReplacer $TAG"
+            PRERELEASE=true
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
+            NAME="CertReplacer $TAG"
+            PRERELEASE=false
+          else
+            # Plain push to main: keep a single rolling pre-release with the newest build.
+            TAG="latest"
+            NAME="CertReplacer (latest build from main)"
+            PRERELEASE=true
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: CertReplacer ${{ steps.tag.outputs.tag }}
-          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          name: ${{ steps.tag.outputs.name }}
+          prerelease: ${{ steps.tag.outputs.prerelease }}
+          body: Built from commit ${{ github.sha }}.
           files: |
             publish/CertReplacer.exe
             CertReplacer-win-x64.zip
