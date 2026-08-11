@@ -35,6 +35,11 @@ Check(CertificateReplacer.IsFolderExcluded(@"C:\certs\00", root, new[] { @"C:\ce
 Check(CertificateReplacer.IsFolderExcluded(@"C:\certs\00", root, new[] { "C:/certs/00" }), "absolute path with forward slashes normalizes and excludes");
 Check(!CertificateReplacer.IsFolderExcluded(@"C:\certs\keep", root, Array.Empty<string>()), "no patterns excludes nothing");
 
+// --- Backup root segment ---
+var twoLevelRoot = Path.Combine(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), "PFR", "091");
+Check(CertificateReplacer.GetBackupRootSegment(twoLevelRoot) == Path.Combine("PFR", "091"),
+    $"backup root segment keeps the last two path components, e.g. PFR\\091 (was {CertificateReplacer.GetBackupRootSegment(twoLevelRoot)})");
+
 // --- End to end Run() ---
 string tmp = Path.Combine(Path.GetTempPath(), "certreplacer-test-" + Guid.NewGuid());
 Directory.CreateDirectory(tmp);
@@ -119,7 +124,7 @@ string backupRoot = Path.Combine(Path.GetTempPath(), "certreplacer-test-backup-"
 Directory.CreateDirectory(backupRoot);
 try
 {
-    var certRoot = Path.Combine(backupRoot, "036"); Directory.CreateDirectory(certRoot);
+    var certRoot = Path.Combine(backupRoot, "PFR", "091"); Directory.CreateDirectory(certRoot);
     var certSub = Path.Combine(certRoot, "sub"); Directory.CreateDirectory(certSub);
 
     var oldAtRoot = Path.Combine(certRoot, "old-root.pfx");
@@ -143,8 +148,8 @@ try
         BackupTimestamp = "20260101120000"
     }, (kind, msg) => backupLogs.Add((kind, msg)));
 
-    var expectedSessionDir = Path.Combine(backupBase, "20260101120000", "036");
-    Check(backupResult.BackupDirectory == expectedSessionDir, $"backup session directory matches {{backup}}/{{timestamp}}/{{root name}} layout (was {backupResult.BackupDirectory})");
+    var expectedSessionDir = Path.Combine(backupBase, "20260101120000", "PFR", "091");
+    Check(backupResult.BackupDirectory == expectedSessionDir, $"backup session directory matches {{backup}}/{{timestamp}}/{{parent name}}/{{root name}} layout (was {backupResult.BackupDirectory})");
     Check(File.Exists(Path.Combine(expectedSessionDir, "old-root.pfx")) && File.ReadAllText(Path.Combine(expectedSessionDir, "old-root.pfx")) == "old-root-data",
         "root-level cert that gets overwritten is backed up with its original content");
     Check(File.Exists(Path.Combine(expectedSessionDir, "sub", "old-sub.pfx")) && File.ReadAllText(Path.Combine(expectedSessionDir, "sub", "old-sub.pfx")) == "old-sub-data",

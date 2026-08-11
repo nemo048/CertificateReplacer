@@ -45,7 +45,7 @@ public enum LogKind
 /// relative/absolute paths, and wildcard masks, matching the original script.
 /// When BackupDirectory is set, every certificate file that is about to be
 /// removed or overwritten is copied first to
-/// {BackupDirectory}/{yyyyMMddHHmmss}/{root folder name}/{relative path}.
+/// {BackupDirectory}/{yyyyMMddHHmmss}/{parent folder name}/{root folder name}/{relative path}.
 /// </summary>
 public static class CertificateReplacer
 {
@@ -65,10 +65,7 @@ public static class CertificateReplacer
         if (!options.DryRun && !string.IsNullOrWhiteSpace(options.BackupDirectory))
         {
             var timestamp = options.BackupTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmss");
-            // Path.GetFileName("C:\") is empty for a drive root; fall back to a fixed name so backups still land somewhere sensible.
-            var rootName = Path.GetFileName(root);
-            if (string.IsNullOrEmpty(rootName)) rootName = "root";
-            backupSessionDir = Path.Combine(options.BackupDirectory, timestamp, rootName);
+            backupSessionDir = Path.Combine(options.BackupDirectory, timestamp, GetBackupRootSegment(root));
         }
 
         var allFolders = Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
@@ -150,6 +147,22 @@ public static class CertificateReplacer
 
         log(LogKind.Done, $"Done. Processed: {processed}, skipped (no certs): {skipped}");
         return new ReplaceResult(processed, skipped, backupSessionDir);
+    }
+
+    /// <summary>
+    /// Last two path components of root (e.g. "F:\bin\PFR\091" -> "PFR\091"), so backups from
+    /// differently-numbered sibling folders don't collide under a single-segment name like "091".
+    /// Falls back to fewer segments for shallow/drive-root paths.
+    /// </summary>
+    internal static string GetBackupRootSegment(string root)
+    {
+        var rootName = Path.GetFileName(root);
+        if (string.IsNullOrEmpty(rootName)) return "root"; // e.g. root is a bare drive like "C:\"
+
+        var parentDir = Path.GetDirectoryName(root);
+        var parentName = string.IsNullOrEmpty(parentDir) ? null : Path.GetFileName(parentDir);
+
+        return string.IsNullOrEmpty(parentName) ? rootName : Path.Combine(parentName, rootName);
     }
 
     private static void BackupFile(string filePath, string root, string? backupSessionDir, Action<LogKind, string> log)

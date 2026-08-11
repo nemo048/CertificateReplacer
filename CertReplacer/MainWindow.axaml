@@ -40,7 +40,7 @@
         <!-- Backup folder -->
         <Grid Grid.Row="4" ColumnDefinitions="120,*,Auto" Margin="0,0,0,8">
             <TextBlock Grid.Column="0" Text="Backup folder" VerticalAlignment="Center"
-                       ToolTip.Tip="Replaced/removed certificates are copied here first, under a yyyyMMddHHmmss\{root folder name}\ subfolder" />
+                       ToolTip.Tip="Replaced/removed certificates are copied here first, under yyyyMMddHHmmss\{parent folder}\{root folder}\" />
             <TextBox Grid.Column="1" Name="BackupFolderBox" Margin="0,0,8,0" />
             <Button Grid.Column="2" Name="BrowseBackupButton" Content="Browse..." />
         </Grid>

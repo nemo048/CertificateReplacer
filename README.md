@@ -23,13 +23,13 @@ When **Backup before replacing** is checked (on by default), every certificate f
 to be removed or overwritten is copied first to:
 
 ```
-{backup folder}\{yyyyMMddHHmmss}\{root folder name}\{path relative to root}
+{backup folder}\{yyyyMMddHHmmss}\{parent folder name}\{root folder name}\{path relative to root}
 ```
 
-For example, replacing certificates under `F:\bin\PFR\036` produces backups like
-`backup\20260811143000\036\old.pfx` and `backup\20260811143000\036\sub\old.pfx`. The backup
-folder defaults to a `backup` folder next to `CertReplacer.exe`, and can be changed in the UI.
-Dry runs never write backups.
+For example, replacing certificates under `F:\bin\PFR\091` produces backups like
+`backup\20260811143000\PFR\091\old.pfx` and `backup\20260811143000\PFR\091\sub\old.pfx`. The
+backup folder defaults to a `backup` folder next to `CertReplacer.exe`, and can be changed in the
+UI. Dry runs never write backups.
 
 ## Download
 
