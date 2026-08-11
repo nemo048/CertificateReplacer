@@ -114,6 +114,76 @@ finally
     catch { /* best-effort cleanup */ }
 }
 
+// --- Backup ---
+string backupRoot = Path.Combine(Path.GetTempPath(), "certreplacer-test-backup-" + Guid.NewGuid());
+Directory.CreateDirectory(backupRoot);
+try
+{
+    var certRoot = Path.Combine(backupRoot, "036"); Directory.CreateDirectory(certRoot);
+    var certSub = Path.Combine(certRoot, "sub"); Directory.CreateDirectory(certSub);
+
+    var oldAtRoot = Path.Combine(certRoot, "old-root.pfx");
+    File.WriteAllText(oldAtRoot, "old-root-data");
+    var oldInSub = Path.Combine(certSub, "old-sub.pfx");
+    File.WriteAllText(oldInSub, "old-sub-data");
+
+    var backupBase = Path.Combine(backupRoot, "backup");
+    var newCertDir = Path.Combine(backupRoot, "_newcert"); Directory.CreateDirectory(newCertDir);
+    // Same file name as the root-level cert, so this run also exercises the "destination gets overwritten" backup path.
+    var newCert = Path.Combine(newCertDir, "old-root.pfx");
+    File.WriteAllText(newCert, "new-data");
+
+    var backupLogs = new List<(LogKind kind, string msg)>();
+    var backupResult = CertificateReplacer.Run(new ReplaceOptions
+    {
+        RootDirectory = certRoot,
+        NewCertificatePath = newCert,
+        IncludeRoot = true,
+        BackupDirectory = backupBase,
+        BackupTimestamp = "20260101120000"
+    }, (kind, msg) => backupLogs.Add((kind, msg)));
+
+    var expectedSessionDir = Path.Combine(backupBase, "20260101120000", "036");
+    Check(backupResult.BackupDirectory == expectedSessionDir, $"backup session directory matches {{backup}}/{{timestamp}}/{{root name}} layout (was {backupResult.BackupDirectory})");
+    Check(File.Exists(Path.Combine(expectedSessionDir, "old-root.pfx")) && File.ReadAllText(Path.Combine(expectedSessionDir, "old-root.pfx")) == "old-root-data",
+        "root-level cert that gets overwritten is backed up with its original content");
+    Check(File.Exists(Path.Combine(expectedSessionDir, "sub", "old-sub.pfx")) && File.ReadAllText(Path.Combine(expectedSessionDir, "sub", "old-sub.pfx")) == "old-sub-data",
+        "nested cert is backed up preserving its relative subfolder path");
+
+    // Dry run must not create any backup
+    File.WriteAllText(oldAtRoot, "old-root-data-2");
+    var dryBackupBase = Path.Combine(backupRoot, "backup-dry");
+    CertificateReplacer.Run(new ReplaceOptions
+    {
+        RootDirectory = certRoot,
+        NewCertificatePath = newCert,
+        IncludeRoot = true,
+        DryRun = true,
+        BackupDirectory = dryBackupBase,
+        BackupTimestamp = "20260101120000"
+    }, (_, _) => { });
+    Check(!Directory.Exists(dryBackupBase), "dry run does not create a backup folder");
+
+    // Backup disabled (no BackupDirectory) must not report or create a backup
+    var noBackupResult = CertificateReplacer.Run(new ReplaceOptions
+    {
+        RootDirectory = certRoot,
+        NewCertificatePath = newCert,
+        IncludeRoot = true
+    }, (_, _) => { });
+    Check(noBackupResult.BackupDirectory == null, "backup is skipped when BackupDirectory is not set");
+}
+finally
+{
+    try
+    {
+        foreach (var f in Directory.EnumerateFiles(backupRoot, "*", SearchOption.AllDirectories))
+            File.SetAttributes(f, FileAttributes.Normal);
+        Directory.Delete(backupRoot, true);
+    }
+    catch { /* best-effort cleanup */ }
+}
+
 Console.WriteLine();
 if (failures.Count == 0)
 {

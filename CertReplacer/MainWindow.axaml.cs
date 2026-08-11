@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,9 +21,11 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         LogItems.ItemsSource = _logEntries;
+        BackupFolderBox.Text = Path.Combine(AppContext.BaseDirectory, "backup");
 
         BrowseRootButton.Click += async (_, _) => await BrowseRootAsync();
         BrowseCertButton.Click += async (_, _) => await BrowseCertAsync();
+        BrowseBackupButton.Click += async (_, _) => await BrowseBackupAsync();
         RunButton.Click += async (_, _) => await RunAsync();
         CancelButton.Click += (_, _) => _cts?.Cancel();
         ClearLogButton.Click += (_, _) => _logEntries.Clear();
@@ -68,6 +71,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task BrowseBackupAsync()
+    {
+        var provider = GetTopLevel(this)!.StorageProvider;
+        var result = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select backup folder",
+            AllowMultiple = false
+        });
+
+        var folder = result.FirstOrDefault();
+        if (folder?.TryGetLocalPath() is { } path)
+        {
+            BackupFolderBox.Text = path;
+        }
+    }
+
     private async Task RunAsync()
     {
         var root = RootDirectoryBox.Text?.Trim() ?? string.Empty;
@@ -101,6 +120,9 @@ public partial class MainWindow : Window
         SetRunning(true);
         _cts = new CancellationTokenSource();
 
+        var backupEnabled = BackupCheckBox.IsChecked == true;
+        var backupFolder = BackupFolderBox.Text?.Trim();
+
         var options = new ReplaceOptions
         {
             RootDirectory = root,
@@ -108,7 +130,8 @@ public partial class MainWindow : Window
             CertificatePatterns = patterns,
             ExcludeFolders = excludeFolders,
             IncludeRoot = IncludeRootCheckBox.IsChecked == true,
-            DryRun = dryRun
+            DryRun = dryRun,
+            BackupDirectory = backupEnabled && !string.IsNullOrWhiteSpace(backupFolder) ? backupFolder : null
         };
 
         try
@@ -117,7 +140,9 @@ public partial class MainWindow : Window
             var result = await Task.Run(() =>
                 CertificateReplacer.Run(options, (kind, message) => AppendLog(kind, message), token), token);
 
-            StatusText.Text = $"Processed: {result.Processed}, skipped: {result.Skipped}";
+            StatusText.Text = result.BackupDirectory is { } backupDir
+                ? $"Processed: {result.Processed}, skipped: {result.Skipped}, backup: {backupDir}"
+                : $"Processed: {result.Processed}, skipped: {result.Skipped}";
         }
         catch (OperationCanceledException)
         {
@@ -145,10 +170,13 @@ public partial class MainWindow : Window
         CertificatePathBox.IsEnabled = !running;
         PatternsBox.IsEnabled = !running;
         ExcludeFoldersBox.IsEnabled = !running;
+        BackupFolderBox.IsEnabled = !running;
         IncludeRootCheckBox.IsEnabled = !running;
+        BackupCheckBox.IsEnabled = !running;
         DryRunCheckBox.IsEnabled = !running;
         BrowseRootButton.IsEnabled = !running;
         BrowseCertButton.IsEnabled = !running;
+        BrowseBackupButton.IsEnabled = !running;
     }
 
     private static string[] SplitList(string? text)
@@ -166,6 +194,7 @@ public partial class MainWindow : Window
             LogKind.Skipped => Brushes.Gray,
             LogKind.Done => Brushes.SteelBlue,
             LogKind.Error => Brushes.Crimson,
+            LogKind.BackedUp => Brushes.MediumPurple,
             _ => Brushes.Black
         };
 

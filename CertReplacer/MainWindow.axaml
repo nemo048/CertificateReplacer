@@ -3,11 +3,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CertReplacer"
-        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="640"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="680"
         x:Class="CertReplacer.MainWindow"
-        Width="820" Height="680" MinWidth="640" MinHeight="480"
+        Width="820" Height="720" MinWidth="640" MinHeight="520"
         Title="Certificate Replacer">
-    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
+    <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
 
         <!-- Root directory -->
         <Grid Grid.Row="0" ColumnDefinitions="120,*,Auto" Margin="0,0,0,8">
@@ -37,14 +37,23 @@
             <TextBox Grid.Column="1" Name="ExcludeFoldersBox" PlaceholderText="e.g. 00, archive\*, 9*" />
         </Grid>
 
+        <!-- Backup folder -->
+        <Grid Grid.Row="4" ColumnDefinitions="120,*,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Backup folder" VerticalAlignment="Center"
+                       ToolTip.Tip="Replaced/removed certificates are copied here first, under a yyyyMMddHHmmss\{root folder name}\ subfolder" />
+            <TextBox Grid.Column="1" Name="BackupFolderBox" Margin="0,0,8,0" />
+            <Button Grid.Column="2" Name="BrowseBackupButton" Content="Browse..." />
+        </Grid>
+
         <!-- Options -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="24" Margin="120,0,0,8">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="24" Margin="120,0,0,8">
             <CheckBox Name="IncludeRootCheckBox" Content="Include root folder itself" />
+            <CheckBox Name="BackupCheckBox" Content="Backup before replacing" IsChecked="True" />
             <CheckBox Name="DryRunCheckBox" Content="Dry run (preview only, no changes)" IsChecked="True" />
         </StackPanel>
 
         <!-- Actions -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
             <Button Name="RunButton" Content="Run" Classes="accent" />
             <Button Name="CancelButton" Content="Cancel" IsEnabled="False" />
             <Button Name="ClearLogButton" Content="Clear log" />
@@ -52,7 +61,7 @@
         </StackPanel>
 
         <!-- Log -->
-        <Border Grid.Row="6" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
+        <Border Grid.Row="7" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
             <ScrollViewer Name="LogScrollViewer">
                 <ItemsControl Name="LogItems" Margin="6">
                     <ItemsControl.ItemTemplate>
@@ -66,7 +75,7 @@
             </ScrollViewer>
         </Border>
 
-        <TextBlock Grid.Row="7" Text="Removes existing certificate files in matching subfolders and replaces them with the selected certificate. Review with Dry run first."
+        <TextBlock Grid.Row="8" Text="Removes existing certificate files in matching subfolders and replaces them with the selected certificate. Review with Dry run first."
                     Foreground="Gray" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" />
     </Grid>
 </Window>

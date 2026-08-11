@@ -15,9 +15,15 @@ public sealed class ReplaceOptions
     public string[] ExcludeFolders { get; init; } = Array.Empty<string>();
     public bool IncludeRoot { get; init; }
     public bool DryRun { get; init; }
+
+    /// <summary>Base "backup" folder (typically next to the exe). Null/empty disables backup.</summary>
+    public string? BackupDirectory { get; init; }
+
+    /// <summary>Overrides the yyyyMMddHHmmss backup session folder name; null uses the current time. Exposed for tests.</summary>
+    public string? BackupTimestamp { get; init; }
 }
 
-public sealed record ReplaceResult(int Processed, int Skipped);
+public sealed record ReplaceResult(int Processed, int Skipped, string? BackupDirectory = null);
 
 public enum LogKind
 {
@@ -26,7 +32,8 @@ public enum LogKind
     Installed,
     Skipped,
     Done,
-    Error
+    Error,
+    BackedUp
 }
 
 /// <summary>
@@ -36,6 +43,9 @@ public enum LogKind
 /// certificate (keeping its original file name). Folders with no existing
 /// certificates are left untouched. ExcludeFolders supports folder names,
 /// relative/absolute paths, and wildcard masks, matching the original script.
+/// When BackupDirectory is set, every certificate file that is about to be
+/// removed or overwritten is copied first to
+/// {BackupDirectory}/{yyyyMMddHHmmss}/{root folder name}/{relative path}.
 /// </summary>
 public static class CertificateReplacer
 {
@@ -50,6 +60,16 @@ public static class CertificateReplacer
             throw new FileNotFoundException("Certificate file not found", options.NewCertificatePath);
 
         var newCertificateName = Path.GetFileName(newCertificateFullPath);
+
+        string? backupSessionDir = null;
+        if (!options.DryRun && !string.IsNullOrWhiteSpace(options.BackupDirectory))
+        {
+            var timestamp = options.BackupTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmss");
+            // Path.GetFileName("C:\") is empty for a drive root; fall back to a fixed name so backups still land somewhere sensible.
+            var rootName = Path.GetFileName(root);
+            if (string.IsNullOrEmpty(rootName)) rootName = "root";
+            backupSessionDir = Path.Combine(options.BackupDirectory, timestamp, rootName);
+        }
 
         var allFolders = Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
             .Where(f => !IsFolderExcluded(f, root, options.ExcludeFolders))
@@ -83,18 +103,27 @@ public static class CertificateReplacer
             }
 
             processed++;
+            var destinationBackedUp = false;
 
             foreach (var existing in existingCertificates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // The target file itself is not removed here; Copy below overwrites it.
-                if (string.Equals(existing, destinationPath, StringComparison.OrdinalIgnoreCase))
-                    continue;
+                var isDestination = string.Equals(existing, destinationPath, StringComparison.OrdinalIgnoreCase);
 
                 if (options.DryRun)
                 {
-                    log(LogKind.Removed, $"{prefix}Would remove: {existing}");
+                    // The target file itself isn't removed; Copy below overwrites it.
+                    if (!isDestination)
+                        log(LogKind.Removed, $"{prefix}Would remove: {existing}");
+                    continue;
+                }
+
+                BackupFile(existing, root, backupSessionDir, log);
+
+                if (isDestination)
+                {
+                    destinationBackedUp = true;
                     continue;
                 }
 
@@ -109,13 +138,30 @@ public static class CertificateReplacer
                 continue;
             }
 
+            if (!destinationBackedUp)
+            {
+                BackupFile(destinationPath, root, backupSessionDir, log);
+            }
+
             ClearReadOnly(destinationPath);
             File.Copy(newCertificateFullPath, destinationPath, overwrite: true);
             log(LogKind.Installed, $"Installed: {destinationPath}");
         }
 
         log(LogKind.Done, $"Done. Processed: {processed}, skipped (no certs): {skipped}");
-        return new ReplaceResult(processed, skipped);
+        return new ReplaceResult(processed, skipped, backupSessionDir);
+    }
+
+    private static void BackupFile(string filePath, string root, string? backupSessionDir, Action<LogKind, string> log)
+    {
+        if (backupSessionDir == null) return;
+        if (!File.Exists(filePath)) return;
+
+        var relativePath = Path.GetRelativePath(root, filePath);
+        var backupPath = Path.Combine(backupSessionDir, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
+        File.Copy(filePath, backupPath, overwrite: true);
+        log(LogKind.BackedUp, $"Backed up: {filePath} -> {backupPath}");
     }
 
     private static void ClearReadOnly(string path)

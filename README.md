@@ -17,6 +17,20 @@ Folder exclusion supports:
 - a relative or absolute path (e.g. `archive\logs`, `C:\certs\00`)
 - a wildcard mask (e.g. `9*`, `archive\*`)
 
+## Backup
+
+When **Backup before replacing** is checked (on by default), every certificate file that's about
+to be removed or overwritten is copied first to:
+
+```
+{backup folder}\{yyyyMMddHHmmss}\{root folder name}\{path relative to root}
+```
+
+For example, replacing certificates under `F:\bin\PFR\036` produces backups like
+`backup\20260811143000\036\old.pfx` and `backup\20260811143000\036\sub\old.pfx`. The backup
+folder defaults to a `backup` folder next to `CertReplacer.exe`, and can be changed in the UI.
+Dry runs never write backups.
+
 ## Download
 
 Grab the latest build from the [Releases page](../../releases) — `CertReplacer.exe` is
